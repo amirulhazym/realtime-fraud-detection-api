@@ -175,3 +175,13 @@ cython_debug/
 .pypirc
 
 *.html
+
+best_fraud_pipeline.joblib
+p1env/
+p1renv/
+__pycache__/
+*.pyc
+*.log
+*.ipynb_checkpoints/
+.cache_st/
+# Any other specific files/folders to ignore (like large data if not DVC'd)
