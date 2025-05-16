@@ -12,7 +12,7 @@ numpy==2.0.2      #
 
 # SHAP and plotting
 shap==0.47.2      # 
-matplotlib==3.10.0 # 
+matplotlib==3.9.4 # 
 
 # ML Libraries - CRITICAL: Match versions used for model training/saving
 scikit-learn==1.6.1 # 
