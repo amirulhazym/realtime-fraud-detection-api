@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
+*.pyo
+*.pyd
 
 # C extensions
 *.so
@@ -91,3 +94,10 @@ Thumbs.db
 *.log
 *.tmp
 *.swp
+
+# AWS SAM build artifacts
+.aws-sam/
+
+# SSH Keys
+*.pem
+L4-POC/
