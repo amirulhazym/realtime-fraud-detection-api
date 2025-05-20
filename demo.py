@@ -1,166 +1,317 @@
-# --- demo.py ---
+# --- demo.py (Based on YOUR provided UI, with SHAP section reviewed) ---
 import streamlit as st
 import pandas as pd
 import numpy as np # Often needed by sklearn/xgboost
 import requests
 import joblib
 import shap
-import matplotlib.pyplot as plt # For displaying SHAP plot
+import matplotlib.pyplot as plt # Still needed if you might switch back to shap.plots.waterfall
+import plotly.express as px
 
-# --- Configuration ---
-API_ENDPOINT_URL = "https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/predict" # visit github for latest endpoint URL
-
-MODEL_FILE_PATH = "best_fraud_pipeline.joblib" 
-
-# --- Page Configuration (Optional but good practice) ---
-st.set_page_config(
-    page_title="Real-Time Fraud Detection Demo",
-    page_icon="🛡️",
-    layout="wide"
-)
-
-# --- Load Model for SHAP (Error handling is good) ---
+# --- Page Configuration (MUST BE FIRST) ---
+# For icons, you typically need to serve them or have them in a known path.
+# For now, let's use an emoji or keep it simple if direct image URLs are tricky in Streamlit for page_icon.
+# You'd usually place 'icon_logo.ico' and 'main_logo.png' in the same directory as demo.py
+# or provide a full URL if they are hosted online.
 try:
-    pipeline_for_shap = joblib.load(MODEL_FILE_PATH)
-    st.sidebar.success(f"SHAP Model '{MODEL_FILE_PATH}' loaded successfully!")
+    st.set_page_config(
+        page_title="Real-Time Fraud Detection",
+        page_icon="🛡️", # Using an emoji as a fallback for simplicity now
+        # page_icon="icon_logo.ico", # This would require icon_logo.ico to be in the root of your app
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+except Exception as e: # Fallback if local icon file causes issues on some environments
+    st.set_page_config(
+        page_title="Real-Time Fraud Detection",
+        page_icon="🛡️",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+
+
+# --- Custom CSS for Modern UI (from your code) ---
+st.markdown("""
+<style>
+    body {
+        /* background: linear-gradient(to right, #1a1c2a, #1f2233); */ /* Might be too dark with Streamlit's default theme elements */
+        color: #f0f2f6; /* Ensure this works with Streamlit's base theme or a dark theme */
+        font-family: 'Segoe UI', sans-serif;
+    }
+    .stButton>button { /* This targets all Streamlit buttons */
+        background-color: #4CAF50 !important; /* Added !important for override */
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 10px 20px !important;
+        font-weight: bold !important;
+        border: none !important; /* Remove default border */
+    }
+    .stButton>button:hover {
+        background-color: #45a049 !important; /* Darker shade on hover */
+    }
+
+    /* Targeting specific buttons if needed by adding a class in st.button("label", class_name="my-button")
+    .my-button button { ... } */
+
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] > div { /* Adjusted selector for selectbox */
+        border-radius: 8px !important;
+        border: 1px solid #4CAF50 !important;
+        /* color: #ffffff; */ /* Text color inside input might need to be default Streamlit for theme compatibility */
+        /* background-color: #2d3139; */ /* Be careful with background colors, might clash with Streamlit themes */
+    }
+    /* Ensure sidebar itself has a compatible background if you change element backgrounds */
+    /* div[data-testid="stSidebar"] > div:first-child { background-color: #1f2233; } */
+</style>
+""", unsafe_allow_html=True)
+
+# --- Header with Logo ---
+# For local images, ensure they are in the same directory as demo.py
+# To make it more robust, consider hosting images online (e.g., GitHub raw link) or base64 encoding.
+# For now, assuming 'main_logo.png' is in the same directory as demo.py.
+try:
+    st.markdown("""
+    <div style='display: flex; align-items: center; gap: 15px; padding-bottom: 15px;'>
+      <img src='https://raw.githubusercontent.com/amirulhazym/realtime-fraud-detection-api/main/main_logo.png' width='50' style='border-radius: 5px;'> <!-- Example: GitHub raw link -->
+      <h1 style='margin-bottom: 0px; color: #4CAF50;'>Real-Time Fraud Detection System</h1>
+    </div>
+    """, unsafe_allow_html=True)
 except FileNotFoundError:
-    pipeline_for_shap = None
-    st.sidebar.error(f"SHAP Model file '{MODEL_FILE_PATH}' not found. SHAP plots will be unavailable.")
-except Exception as e:
-    pipeline_for_shap = None
-    st.sidebar.error(f"Error loading SHAP model: {e}")
+    st.title("🚀 Real-Time Fraud Detection System") # Fallback if logo not found
 
-# --- Application Title ---
-st.title("🚀 Real-Time Fraud Detection API Demo")
-st.markdown("This demo interacts with a live AWS Lambda API for fraud predictions and shows local SHAP explanations.")
-
-# --- Input Features Form ---
-st.sidebar.header("Transaction Features Input:")
-
-# Use two columns for better layout in the sidebar
-col1, col2 = st.sidebar.columns(2)
-
-with col1:
-    step = st.number_input("Step (e.g., hour of day)", min_value=1, max_value=744, value=10, step=1)
-    amount = st.number_input("Amount", min_value=0.0, value=5000.0, format="%.2f")
-    oldbalanceOrg = st.number_input("Old Balance Origin", min_value=0.0, value=20000.0, format="%.2f")
-    newbalanceOrig = st.number_input("New Balance Origin", min_value=0.0, value=15000.0, format="%.2f")
-    type_CASH_OUT = st.selectbox("Type: CASH_OUT", [0, 1], index=1) # Example default
-    type_DEBIT = st.selectbox("Type: DEBIT", [0, 1], index=0)
-
-with col2:
-    oldbalanceDest = st.number_input("Old Balance Destination", min_value=0.0, value=1000.0, format="%.2f")
-    newbalanceDest = st.number_input("New Balance Destination", min_value=0.0, value=6000.0, format="%.2f")
-    amt_ratio_orig = st.number_input("Amount Ratio Origin (amount/oldbalanceOrg)", min_value=0.0, value=0.25, format="%.3f", help="Calculated as amount / oldbalanceOrg. If oldbalanceOrg is 0, use a sensible default or handle in FE.")
-    type_PAYMENT = st.selectbox("Type: PAYMENT", [0, 1], index=0)
-    type_TRANSFER = st.selectbox("Type: TRANSFER", [0, 1], index=0)
-
-# Create the feature dictionary for the API
-# IMPORTANT: The order of features in the DataFrame created for SHAP later
-# MUST match the order the pipeline was trained on.
-# The API expects a dictionary, so order there is less critical, but the Pydantic model defines fields.
-feature_input_dict = {
-    "step": step,
-    "amount": amount,
-    "oldbalanceOrg": oldbalanceOrg,
-    "newbalanceOrig": newbalanceOrig,
-    "oldbalanceDest": oldbalanceDest,
-    "newbalanceDest": newbalanceDest,
-    "type_CASH_OUT": type_CASH_OUT,
-    "type_DEBIT": type_DEBIT,
-    "type_PAYMENT": type_PAYMENT,
-    "type_TRANSFER": type_TRANSFER,
-    "amt_ratio_orig": amt_ratio_orig
-    # Add other one-hot encoded 'type_' features if your model expects them
-    # e.g., if 'type_CASH_IN' was NOT dropped and is a feature.
-}
-
-# --- Prediction Button and API Call ---
-if st.sidebar.button("Get Fraud Prediction", type="primary"):
-    st.subheader("API Prediction Result:")
-    with st.spinner("Calling Fraud Detection API..."):
-        try:
-            response = requests.post(API_ENDPOINT_URL, json=feature_input_dict, timeout=30) # 30 second timeout
-            response.raise_for_status() # Raises an HTTPError for bad responses (4XX or 5XX)
-            api_result = response.json()
-
-            st.success("API Call Successful!")
-            st.write("Prediction Label:", api_result.get("prediction_label", "N/A"))
-            st.write("Is Fraud?:", api_result.get("is_fraud", "N/A"))
-            st.write("Probability of Fraud:", api_result.get("probability_fraud", "N/A"))
-            st.json(api_result) # Display raw JSON response
-
-            # --- SHAP Explanations (if model loaded) ---
-            if pipeline_for_shap:
-                st.subheader("Transaction Feature Importance (SHAP):")
-                with st.spinner("Calculating SHAP values..."):
-                    try:
-                        # Create DataFrame from input, ensuring correct column order and types
-                        # This order MUST match X_train_fe when the model was trained
-                        expected_feature_order = [
-                            'step', 'amount', 'oldbalanceOrg', 'newbalanceOrig', 
-                            'oldbalanceDest', 'newbalanceDest', 'type_CASH_OUT', 
-                            'type_DEBIT', 'type_PAYMENT', 'type_TRANSFER', 'amt_ratio_orig'
-                        ]
-                        input_df_for_shap = pd.DataFrame([feature_input_dict])[expected_feature_order]
-
-                        # If your pipeline does preprocessing (e.g., scaling, encoding from raw inputs),
-                        # you might need to pass a DataFrame with raw features before preprocessing.
-                        # However, if 'pipeline_for_shap' expects already feature-engineered input
-                        # (like X_train_fe), then input_df_for_shap should match that structure.
-
-                        # Assuming 'pipeline_for_shap' is your scikit-learn pipeline object
-                        # The SHAP explainer works best with the underlying model, not the full pipeline if it has complex transformers.
-                        # Access the final model step (e.g., XGBoost model)
-                        model_for_shap = pipeline_for_shap.steps[-1][1] # e.g., pipeline.named_steps['xgboost']
-
-                        # SHAP explainer
-                        # For tree models like XGBoost, TreeExplainer is efficient
-                        explainer = shap.TreeExplainer(model_for_shap)
-                        
-                        # If your pipeline's preprocessing steps are simple and SHAP can handle them,
-                        # you might try explaining the whole pipeline on the raw input.
-                        # However, usually, you explain the final model on the data as it sees it.
-                        # This requires your `input_df_for_shap` to be in the *transformed* state
-                        # if your pipeline's preprocessor is complex.
-                        # If your pipeline already includes feature engineering and one-hot encoding,
-                        # and `pipeline_for_shap.predict()` works on `input_df_for_shap`, then
-                        # `shap_values = explainer.shap_values(input_df_for_shap)` might work.
-                        
-                        # For simplicity here, we assume `input_df_for_shap` is what the model_for_shap expects.
-                        # You might need to call `pipeline_for_shap.transform(raw_input_df)` if your
-                        # model_for_shap expects transformed data and your pipeline_for_shap has a transform method.
-
-                        shap_values = explainer.shap_values(input_df_for_shap)
-
-                        # Display SHAP plot (Waterfall for single prediction is good)
-                        st.markdown("##### SHAP Waterfall Plot:")
-                        fig_waterfall, ax_waterfall = plt.subplots()
-                        shap.waterfall_plot(shap.Explanation(values=shap_values[0], # for first instance
-                                                             base_values=explainer.expected_value,
-                                                             data=input_df_for_shap.iloc[0],
-                                                             feature_names=input_df_for_shap.columns.tolist()),
-                                            show=False)
-                        st.pyplot(fig_waterfall)
-
-                        # Force plot (another common one for single predictions)
-                        # st.markdown("##### SHAP Force Plot:")
-                        # st.pyplot(shap.force_plot(explainer.expected_value, shap_values[0,:], input_df_for_shap.iloc[0,:], matplotlib=True, show=False))
-                        # Note: force_plot might need `shap.initjs()` in some environments if not rendering directly to matplotlib.
-
-                    except Exception as e_shap:
-                        st.error(f"Error generating SHAP plot: {e_shap}")
-                        st.error("Ensure the input data format matches what the SHAP model expects.")
-            else:
-                st.warning("SHAP model not loaded, so explanations are not available.")
-
-        except requests.exceptions.RequestException as e_api:
-            st.error(f"API Call Failed: {e_api}")
-        except Exception as e_general:
-            st.error(f"An unexpected error occurred: {e_general}")
-else:
-    st.info("Enter transaction features in the sidebar and click 'Get Fraud Prediction'.")
-
-# --- Footer (Optional) ---
+st.markdown("#### 🔍 Instantly detect potentially fraudulent transactions using AI-powered insights and SHAP explanations.")
 st.markdown("---")
-st.markdown("Developed by Amirulhazym | Portfolio Project")
+
+
+# --- API and Model Configuration ---
+API_ENDPOINT_URL = "https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/predict" # Make sure this is correct
+MODEL_FILE_PATH = "best_fraud_pipeline.joblib"
+
+@st.cache_data # Cache the model loading
+def load_model(path):
+    try:
+        return joblib.load(path)
+    except FileNotFoundError:
+        return None # Handled in the UI
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return None
+
+pipeline_for_shap = load_model(MODEL_FILE_PATH)
+
+
+# --- Sidebar Input Form ---
+with st.sidebar:
+    st.header("📌 Transaction Simulator")
+    st.markdown("Enter details and click **Predict**.")
+
+    if pipeline_for_shap is None:
+        st.error(f"Local model '{MODEL_FILE_PATH}' not found. SHAP explanations will be unavailable.")
+    else:
+        st.success(f"Local model '{MODEL_FILE_PATH}' loaded for SHAP.")
+    st.markdown("---")
+
+    # Group inputs into collapsible sections
+    with st.expander("Transaction Details", expanded=True):
+        step = st.number_input("Step (Hour of Day, 1-744)", 1, 744, 10, help="Time step of the transaction.")
+        amount = st.number_input("Amount (e.g., RM)", 0.0, None, 5000.0, format="%.2f", help="Monetary value of the transaction.")
+        # Using a single selectbox for transaction type is more user-friendly
+        transaction_type_options = ["CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER", "CASH_IN"] # Add all types your model was trained on
+        transaction_type = st.selectbox("Transaction Type", transaction_type_options, index=0, help="Select the type of transaction.")
+
+    with st.expander("Account Balances (Before & After)", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            oldbalanceOrg = st.number_input("Origin Old Balance", 0.0, None, 20000.0, format="%.2f")
+            newbalanceOrig = st.number_input("Origin New Balance", 0.0, None, 15000.0, format="%.2f")
+        with col2:
+            oldbalanceDest = st.number_input("Dest. Old Balance", 0.0, None, 1000.0, format="%.2f")
+            newbalanceDest = st.number_input("Dest. New Balance", 0.0, None, 6000.0, format="%.2f")
+    st.markdown("---")
+    
+    # Auto-calculate ratio - ensure this is done *before* constructing feature_input_dict for the API
+    # And ensure it matches exactly how it was done in your feature engineering
+    if oldbalanceOrg > 0:
+        amt_ratio_orig = amount / oldbalanceOrg
+    else:
+        # Handle division by zero: what did your FE do?
+        # Common: 0, or if amount > 0 then a large number (e.g., 999), or mean/median from training.
+        # Let's assume 0 for now if amount is also 0, or 1 if amount > 0 and oldbalance is 0 (as if it's taking all of nothing + amount)
+        # This needs to match your model's training!
+        amt_ratio_orig = 1.0 if amount > 0 else 0.0 
+    
+    st.info(f"Calculated 'Amount Ratio Origin': {amt_ratio_orig:.4f}")
+
+
+    # One-hot encode transaction type based on the single selectbox
+    type_CASH_OUT = 1 if transaction_type == "CASH_OUT" else 0
+    type_DEBIT = 1 if transaction_type == "DEBIT" else 0
+    type_PAYMENT = 1 if transaction_type == "PAYMENT" else 0
+    type_TRANSFER = 1 if transaction_type == "TRANSFER" else 0
+    # Add other types if your model expects them, e.g. type_CASH_IN
+    # Ensure these match the `expected_feature_order` later
+
+    # Feature dictionary for API and SHAP
+    # This dictionary is what your API expects.
+    feature_input_dict_for_api = {
+        "step": int(step), # Ensure correct types if API Pydantic model is strict
+        "amount": float(amount),
+        "oldbalanceOrg": float(oldbalanceOrg),
+        "newbalanceOrig": float(newbalanceOrig),
+        "oldbalanceDest": float(oldbalanceDest),
+        "newbalanceDest": float(newbalanceDest),
+        "type_CASH_OUT": int(type_CASH_OUT),
+        "type_DEBIT": int(type_DEBIT),
+        "type_PAYMENT": int(type_PAYMENT),
+        "type_TRANSFER": int(type_TRANSFER),
+        "amt_ratio_orig": float(amt_ratio_orig)
+        # Add other one-hot encoded 'type_' features if your model / Pydantic model expects them
+    }
+    
+    # IMPORTANT: Define the EXACT order of features your model pipeline was TRAINED ON for SHAP
+    # This must match the columns of X_train_fe that went into pipeline_for_shap.fit()
+    expected_feature_order_for_shap = [
+        'step', 'amount', 'oldbalanceOrg', 'newbalanceOrig', 
+        'oldbalanceDest', 'newbalanceDest', 'type_CASH_OUT', 
+        'type_DEBIT', 'type_PAYMENT', 'type_TRANSFER', 'amt_ratio_orig'
+        # Add/remove/reorder to *exactly* match your training data columns fed to the pipeline
+    ]
+
+    # --- Prediction Button ---
+    predict_button = st.button("🔮 Predict Fraud Risk", type="primary", use_container_width=True, help="Click to submit transaction for fraud analysis.")
+
+
+# --- Main Area: Results ---
+if predict_button:
+    st.markdown("---")
+    st.header("📈 Prediction & Analysis Results")
+    
+    with st.spinner("⏳ Analyzing transaction with AWS Lambda API..."):
+        try:
+            response = requests.post(API_ENDPOINT_URL, json=feature_input_dict_for_api, timeout=20)
+            response.raise_for_status()
+            api_result = response.json()
+            api_call_successful = True
+        except requests.exceptions.RequestException as e:
+            st.error(f"❌ API Communication Error: {e}")
+            api_result = None
+            api_call_successful = False
+        except Exception as e:
+            st.error(f"❌ An unexpected error occurred during API call: {str(e)}")
+            api_result = None
+            api_call_successful = False
+
+    if api_call_successful and api_result:
+        st.success("✅ API Prediction Received Successfully!")
+        
+        # Extract results
+        is_fraud_api = api_result.get("is_fraud", False)
+        prob_fraud_api_str = str(api_result.get("probability_fraud", "0.0")) # Ensure it's a string
+        try:
+            # Handle potential "f6.0000" like strings or other non-float strings
+            prob_fraud_api = float(prob_fraud_api_str.replace('f', '').replace(',', ''))
+        except ValueError:
+            prob_fraud_api = 0.0 # Default on conversion error
+            st.warning(f"Could not parse fraud probability '{prob_fraud_api_str}' from API. Defaulting to 0.0.")
+
+        prediction_label_api = "FRAUDULENT" if is_fraud_api else "NOT FRAUDULENT"
+
+        # Display Results in columns
+        res_col1, res_col2 = st.columns([2,3]) 
+        with res_col1:
+            st.subheader("Summary:")
+            if is_fraud_api:
+                st.error(f"🚨 **Status: {prediction_label_api}**")
+            else:
+                st.success(f"✅ **Status: {prediction_label_api}**")
+            st.metric(label="Fraud Probability", value=f"{prob_fraud_api:.2%}")
+            
+        with res_col2:
+            st.subheader("Transaction Snapshot:")
+            # Display a summary of the input that was sent
+            display_dict = {
+                "Amount": f"{amount:,.2f}",
+                "Type": transaction_type,
+                "Origin Old Bal.": f"{oldbalanceOrg:,.2f}",
+                "Origin New Bal.": f"{newbalanceOrig:,.2f}",
+                "Ratio (Amt/OrigBal)": f"{amt_ratio_orig:.3f}"
+            }
+            st.json(display_dict) # Shows a neat summary of what was tested
+        
+        st.caption("Full API Response:")
+        st.json(api_result) # Raw API response
+        st.markdown("---")
+
+        # --- SHAP Explanation (if model loaded) ---
+        if pipeline_for_shap:
+            st.subheader("📊 Model Explanation (Feature Importance via SHAP)")
+            st.markdown("This plot shows how each feature value for *this specific transaction* pushed the model's prediction score away from the average. Red bars push towards fraud, blue bars push away from fraud.")
+            with st.spinner("⚙️ Calculating SHAP values..."):
+                try:
+                    # Create DataFrame for SHAP using the defined order
+                    input_df_for_shap = pd.DataFrame([feature_input_dict_for_api])[expected_feature_order_for_shap]
+                    
+                    model_for_shap = pipeline_for_shap.steps[-1][1] # Access the XGBoost model from the pipeline
+                    
+                    # Standard TreeExplainer initialization
+                    explainer = shap.TreeExplainer(model_for_shap)
+                    
+                    # Get SHAP values (this is a numpy array for TreeExplainer with single output)
+                    shap_values_raw = explainer.shap_values(input_df_for_shap) 
+                    
+                    # For your Plotly bar chart, you need SHAP values for the single instance
+                    shap_values_for_instance = shap_values_raw[0] # Get the first (and only) row
+
+                    # Create DataFrame for Plotly Express
+                    shap_df = pd.DataFrame({
+                        'Features': input_df_for_shap.columns,
+                        'SHAP_Values': shap_values_for_instance
+                    })
+                    # Sort by absolute SHAP value for better visualization, or keep original order
+                    shap_df['abs_SHAP_Values'] = shap_df['SHAP_Values'].abs()
+                    shap_df = shap_df.sort_values(by='abs_SHAP_Values', ascending=True) # Ascending for horizontal bar
+
+                    fig = px.bar(
+                        shap_df, 
+                        x='SHAP_Values', 
+                        y='Features', 
+                        orientation='h', 
+                        title="Feature Contributions to Prediction Score",
+                        color='SHAP_Values',
+                        color_continuous_scale=px.colors.diverging.RdBu_r, # Red for positive, Blue for negative
+                        labels={'SHAP_Values': 'SHAP Value (Impact on Model Output)', 'Features': 'Transaction Feature'}
+                    )
+                    fig.update_layout(
+                        yaxis_title=None, # Remove y-axis title if feature names are clear
+                        coloraxis_colorbar_title_text='Impact'
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    # If you want to try SHAP Waterfall again (more standard for single instance explanations)
+                    # with st.expander("Show SHAP Waterfall Plot (Alternative View)", expanded=False):
+                    #     fig_waterfall, ax_waterfall = plt.subplots()
+                    #     # Create SHAP Explanation object for the plot
+                    #     shap_explanation_for_plot = shap.Explanation(
+                    #         values=shap_values_for_instance,
+                    #         base_values=explainer.expected_value if hasattr(explainer, 'expected_value') else None, 
+                    #         data=input_df_for_shap.iloc[0].values,
+                    #         feature_names=input_df_for_shap.columns.tolist()
+                    #     )
+                    #     shap.plots.waterfall(shap_explanation_for_plot, max_display=12, show=False)
+                    #     plt.tight_layout()
+                    #     st.pyplot(fig_waterfall, clear_figure=True)
+
+                except Exception as e_shap_plot:
+                    st.error(f"❌ Error generating SHAP plot: {str(e_shap_plot)}")
+                    st.caption("This can happen if input data format is incompatible with the SHAP model, or due to version conflicts.")
+        else:
+            st.info("SHAP explanations are unavailable because the local model was not loaded.")
+    elif predict_button: # Predict button was pressed, but API call failed
+        st.warning("⚠️ Could not retrieve prediction due to API error. Please check error messages above.")
+
+else: # Initial page load, before button is pressed
+    st.info("ℹ️ Enter transaction details in the sidebar and click **Predict Fraud Risk** to start the analysis.")
+
+# --- Footer ---
+st.markdown("---")
+st.markdown("Developed by **Amirulhazym** | Powered by **Streamlit** & **AWS Lambda**")
+st.caption(f"App Version: 1.0.0") # Example version
