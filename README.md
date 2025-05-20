@@ -4,7 +4,7 @@
 
 This project implements an end-to-end real-time fraud detection system, featuring a machine learning model (XGBoost) exposed via a scalable serverless API on AWS, and demonstrated with an interactive web UI hosted on Streamlit Community Cloud. The primary goal was to build a production-mimicking solution while adhering to a strict zero-cost objective by leveraging AWS Free Tier services.
 
-The system predicts whether a given financial transaction is fraudulent based on its features, providing both a classification and a probability score. This project showcases a comprehensive MLOps workflow: data preprocessing, feature engineering, model training (with SMOTE for imbalance), hyperparameter tuning (`RandomizedSearchCV`), API development (FastAPI), serverless deployment (AWS Lambda, API Gateway, SAM, ECR, S3), and building a user-friendly demonstration interface (Streamlit).
+The system predicts whether a given financial transaction is fraudulent based on its features, providing both a classification and a probability score. This project establishes key foundations for an MLOps pipeline by covering data preprocessing, feature engineering, model training (XGBoost), hyperparameter tuning (RandomizedSearchCV), robust API development (FastAPI), and the deployment of a serverless model serving endpoint (AWS Lambda, API Gateway, SAM, ECR, S3), and building a user-friendly demonstration interface (Streamlit).
 
 **🚀 Live Demo (Streamlit Community Cloud):** 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://realtime-fraud-detection-api.streamlit.app/) 
@@ -260,7 +260,7 @@ This project provided significant hands-on experience and several learning oppor
     *   Implement API Gateway authentication/authorization (e.g., API Keys, IAM, or Lambda Authorizers).
 *   **A/B Testing for Models:** Design infrastructure to support A/B testing of different model versions in production.
 *   **Batch Prediction Workflow:** Add capability for processing batch predictions from files stored in S3.
-*   **Advanced Hyperparameter Tuning:** Fully integrate Ray Tune's Core API for more sophisticated and distributed hyperparameter optimization.
+*   **Ray Hyperparameter Tuning:** Fully integrate Ray Tune's Core API for more sophisticated and distributed hyperparameter optimization as per planning in **G-v5.6-Go**.
 *   **Data Drift & Model Retraining Trigger:** Implement mechanisms to detect data drift and trigger automated model retraining pipelines.
 
 ---
