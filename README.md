@@ -149,16 +149,34 @@ Two UIs were created to serve different purposes:
 
 ## 💡 Key Challenges & Learnings
 
-- **Overcoming Lambda Size Limits:** Successfully migrated from a simple ZIP deployment to a robust container-based deployment using ECR and S3 to handle the large model and dependency size.
-- **Mastering AWS SAM for Containers:** Debugged and solved complex issues with the SAM CLI's automated image handling by adopting a more controlled manual docker build/push workflow, providing a deeper understanding of the underlying mechanics.
-- **Robust EC2 Environment Setup:** Navigated and resolved numerous real-world VM setup challenges, including Linux package management, Python version conflicts, and pip installation failures due to temporary disk space limitations (solved by redirecting TMPDIR).
-- **Cost-Driven Architecture:** The entire project was guided by a zero-cost principle for persistent components, leading to strategic choices like using the permanent Streamlit Cloud demo over a continuously running EC2 instance.
+### **Challenge: Overcoming AWS Lambda's Deployment Package Size Limit**
+- **The Problem:** Initial attempts to deploy the FastAPI application failed because the total size of the deployment package—which included all code, dependencies, and the `best_fraud_pipeline.joblib` model file—exceeded AWS Lambda's 250 MB unzipped size limit. The deployment would result in an "Internal Server Error" and `CREATE_FAILED` status in CloudWatch logs.
+
+- **The Solution:** The strategy was pivoted to separate the model artifact from the code. The large `.joblib` model file was uploaded to Amazon S3. The Lambda function's code was then modified to use the `boto3` library to download and load the model directly from S3 at runtime, which kept the deployment package size within the acceptable limits.
+
+### **Challenge: Unexpected Issues with AWS SAM's Automated Image Deployment**
+- **The Problem:** The AWS Serverless Application Model (SAM) CLI's internal logic for automatically building, pushing, and deploying a Docker image to Amazon ECR failed. The `sam deploy --guided` command would report "No images found to deploy," even though the Docker image was built locally. This bug prevented a streamlined, single-command deployment.
+
+- **The Solution:** An alternative, more robust, and manual approach was adopted. The Docker image was manually built and tagged locally using `docker build` and `docker tag`, then manually pushed to the ECR repository using `docker push`. The `template.yaml` file was updated to explicitly reference the image's URI in ECR, and the `sam deploy` command was run without the `--guided` flag, effectively bypassing the buggy part of the SAM CLI. This approach gave more control and ensured a successful deployment.
+
+### **Challenge: Managing Costs and Ensuring Zero-Cost Operation**
+- **The Problem:** A core mandate for the project was to incur absolutely zero cost by strictly adhering to the **AWS Free Tier**. Using services like Amazon EC2 for the full Streamlit demo posed a high risk of accidental charges if instances were not terminated promptly.
+
+- **The Solution:** A two-part strategy was implemented. First, **AWS Budgets** were set up with mandatory alerts for any spend over $0.01 to act as a safety net. Second, for the long-term demo, the Streamlit app was refactored and deployed to **Streamlit Community Cloud**, which provides a permanent, free hosting solution that doesn't rely on AWS Free Tier limits. The EC2 instance was used only as a temporary learning step and was always terminated immediately after use to avoid costs.
+
+### **Challenge: Correctly Installing Python Packages on the EC2 Instance**
+- **The Problem:** When deploying the Streamlit demo to an EC2 instance, the `pip install` command failed with "ERROR: Could not find a version that satisfies the requirement...". This was caused by a mismatch between the package versions in the local Python 3.11 development environment and the EC2 instance's default Python 3.9 environment.
+- **The Solution:** The solution was to explicitly install Python 3.11 on the EC2 instance and create a virtual environment with it, ensuring the Python version on the deployment target matched the development environment. This allowed the project's exact package versions to be installed successfully.
 
 ## 🔮 Future Enhancements
 
 - **CI/CD Pipeline:** Fully automate the model retraining, ECR image push, and SAM deployment using GitHub Actions (as implemented in Project 2).
 - **Advanced Monitoring:** Implement comprehensive CloudWatch dashboards and alarms for API performance, errors, and costs.
 - **Security Hardening:** Refine the Lambda's IAM role to the principle of least privilege and add an API key to the API Gateway.
+- **Database Integration:** Replace the simple API with a more robust system that interacts with a database (Amazon RDS or DynamoDB) to log all prediction requests and their outcomes. This would enable data versioning and ongoing model monitoring.
+- **Extended Feature Set:** Expand the project to handle additional data types, such as location data, device information, or historical user spending patterns, to create a more comprehensive fraud detection model.
+- **Cost & Performance Optimization:** Fine-tune the Lambda function's memory and CPU allocation for better performance, and explore using a single endpoint for both model inference and explainability to reduce latency and resource usage.
+- **Refactor for Explainable AI (XAI) on Streamlit Cloud:** Implement a solution to run SHAP on the Streamlit Community Cloud without exceeding free tier limitations, perhaps by sending a request to the API with an `explain` flag or by using a less resource-intensive explainability method.
 
 ## 👤 Author
 
