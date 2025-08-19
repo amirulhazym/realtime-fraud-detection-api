@@ -1,251 +1,187 @@
-# Real-Time Fraud Detection API & Demo (Project 1)
+# Serverless Real-Time Fraud Detection API 🛡️
 
-## Project Overview
+[![AWS Serverless API](https://img.shields.io/badge/AWS-Serverless_API-FF9900?logo=amazonaws)](https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/predict)
+[![Streamlit App](https://img.shields.io/badge/Streamlit-Live_Demo-FF4B4B?logo=streamlit)](https://realtime-fraud-detection-api.streamlit.app/)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python)](https://www.python.org/downloads/release/python-3110/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This project implements a real-time fraud detection system, featuring a machine learning model exposed via a serverless API and demonstrated with an interactive web UI. The primary goal was to build an end-to-end solution leveraging cloud services with a strict zero-cost objective using AWS Free Tier services.
+## 📋 Project Overview
 
-The system can predict whether a given financial transaction is fraudulent based on its features. This project demonstrates skills in data preprocessing, model training, hyperparameter tuning, API development with FastAPI, serverless deployment using AWS Lambda & API Gateway via SAM, and building a user-friendly demo with Streamlit.
+This project implements an end-to-end real-time fraud detection system, featuring a machine learning model (XGBoost) exposed via a scalable serverless API on AWS. The system is demonstrated with an interactive web UI hosted on Streamlit Community Cloud. The primary goal was to build a production-mimicking solution while adhering to a strict **zero-cost objective** by leveraging AWS Free Tier services.
 
-**Live Demo (Streamlit Cloud):** [PENDING - URL to be added once Level 4 is complete]
-**API Endpoint (AWS Lambda):** https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/ _(Note: This is a public demo endpoint)_
+The system predicts whether a given financial transaction is fraudulent based on its features, providing both a classification and a probability score. This project covers the full MLOps lifecycle: data preprocessing, feature engineering, model training, robust API development (FastAPI), serverless deployment (AWS Lambda, SAM), and building a user-friendly demonstration interface (Streamlit).
 
----
+## ✨ Live Demo & API Endpoint
 
-## Table of Contents
+- **🚀 Interactive Web App (Streamlit Cloud):** [**https://realtime-fraud-detection-api.streamlit.app/**](https://realtime-fraud-detection-api.streamlit.app/)
+- **⚙️ Live API Endpoint (AWS Lambda):** [**https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/predict**](https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/predict)
 
-- [Project Goal](#project-goal)
-- [Architecture](#architecture)
-- [Technologies Used](#technologies-used)
-- [Features](#features)
-- [Setup & Installation](#setup--installation)
-  - [Prerequisites](#prerequisites)
-  - [Local ML Model Development](#local-ml-model-development)
-  - [Local API Testing](#local-api-testing)
-- [AWS Deployment (SAM)](#aws-deployment-sam)
-  - [Key AWS Services Used](#key-aws-services-used)
-  - [Deployment Steps](#deployment-steps)
-- [Demo UI](#demo-ui)
-  - [Temporary EC2 Demo (Learning Exercise)](#temporary-ec2-demo-learning-exercise)
-  - [Permanent Streamlit Cloud Demo](#permanent-streamlit-cloud-demo)
-- [Challenges & Learnings](#challenges--learnings)
-- [Future Enhancements](#future-enhancements)
-- [Contact](#contact)
+**(Insert a screenshot or GIF of your final Streamlit application in action here!)**
+<!-- Example: ![Fraud Detection App Demo](docs/images/p1_demo.gif) -->
 
----
+## 🏗️ System Architecture
 
-## Project Goal
+The system integrates local ML development with a cloud-native serverless backend and a web-based frontend.
 
-To develop and deploy a machine learning model capable of detecting fraudulent transactions in near real-time. The project aims to:
-1.  Build a robust fraud detection model using XGBoost.
-2.  Perform feature engineering and hyperparameter tuning to optimize model performance (focus on Recall).
-3.  Expose the model as a scalable, serverless API using FastAPI on AWS Lambda.
-4.  Create an interactive Streamlit application to demonstrate the API's functionality.
-5.  Strictly adhere to a zero-cost deployment strategy leveraging AWS Free Tier services.
+```mermaid
+flowchart TD
+    subgraph "Local Development Environment"
+        A[Raw Data] --> B(Data Preprocessing & Feature Engineering);
+        B --> C{SMOTE for Imbalance};
+        C --> D[XGBoost Model Training & Tuning];
+        D --> E((best_fraud_pipeline.joblib));
+    end
 
----
+    subgraph "AWS Serverless Backend"
+        E -- Uploaded to --> F[S3 Bucket for Model Storage];
+        G[FastAPI Code <br> api.py] & H[Dockerfile] -- Build --> I[Container Image];
+        I -- Pushed to --> J[Amazon ECR];
+        K[SAM Template <br> template.yaml] -- 'sam deploy' --> L[CloudFormation Stack];
+        L -- Creates/Updates --> M[AWS Lambda Function];
+        M -- Pulls Image from --> J;
+        M -- Loads Model at startup from --> F;
+        L -- Creates/Updates --> N[API Gateway];
+        N -- Triggers --> M;
+    end
 
-## Architecture
+    subgraph "Frontend User Interface"
+        O[User] -- Interacts with --> P{Streamlit Cloud App};
+        P -- Sends API Request --> N;
+        N -- Returns Prediction --> P;
+        P -- Displays Result --> O;
+    end
 
-The system comprises the following key components:
+    style F fill:#FF9900,stroke:#333,stroke-width:2px
+    style J fill:#FF6D00
+    style M fill:#FF9900,stroke:#333,stroke-width:2px
+    style P fill:#FF4B4B,stroke:#333,stroke-width:2px
+```
 
-1.  **Local Machine Learning Pipeline:**
-    *   Data preprocessing, feature engineering, and class imbalance handling (SMOTE).
-    *   XGBoost model training and hyperparameter tuning (using Scikit-learn `RandomizedSearchCV`).
-    *   Model artifact (`best_fraud_pipeline.joblib`) generation.
-2.  **Serverless API Backend (AWS):**
-    *   **FastAPI Application (`api.py`):** Defines the prediction endpoint.
-    *   **AWS Lambda:** Hosts the FastAPI application using Mangum adapter. Deployed as a container image from ECR. Loads the model from S3 on initialization.
-    *   **Amazon API Gateway (HTTP API):** Provides a public HTTPS endpoint to trigger the Lambda function.
-    *   **AWS S3:** Stores the trained model artifact (`.joblib` file) to overcome Lambda deployment package size limits.
-    *   **Amazon ECR:** Stores the Lambda function's container image.
-    *   **AWS SAM (Serverless Application Model):** Used to define and deploy the serverless infrastructure (Lambda, API Gateway, IAM Roles).
-    *   **AWS CloudFormation:** Underlies SAM for infrastructure provisioning.
-    *   **AWS IAM:** Manages permissions for AWS services.
-3.  **Demo User Interface:**
-    *   **Streamlit Application (`demo.py`):** Provides a user interface to input transaction features.
-    *   Calls the live AWS Lambda API endpoint to get predictions.
-    *   Hosted permanently on Streamlit Community Cloud (Planned for Level 4).
-    *   (A temporary EC2 deployment was also planned as a learning exercise for VM-based deployments).
+## ⭐ Core Features
 
-_(Consider adding an architecture diagram here later by creating an image, uploading it to your GitHub repo in an `assets` or `images` folder, and using markdown: `![Architecture Diagram](assets/architecture.png)` )_
+- **Real-Time Fraud Prediction:** Classifies transactions as fraudulent or legitimate and provides a probability score.
+- **Serverless & Scalable API:** Built with FastAPI and deployed on AWS Lambda for high scalability and cost-efficiency.
+- **Containerized Deployment:** Uses Docker and Amazon ECR to manage dependencies and ensure environment consistency, overcoming Lambda's size limits.
+- **Efficient Model Handling:** The trained model artifact is stored in S3 and loaded by the Lambda function at initialization.
+- **Interactive Demo:** A publicly accessible Streamlit app showcases live API interaction.
+- **Model Explainability (EC2 Version):** A temporary, full-featured version was deployed to an EC2 VM to demonstrate SHAP-based feature importance.
+- **Zero-Cost for Production:** Designed to operate entirely within the AWS Free Tier and Streamlit Community Cloud's free hosting.
 
----
+## 🛠️ Technology Stack
 
-## Technologies Used
+| Category | Technologies Used |
+|----------|------------------|
+| **Data Science & ML** | Python 3.11, Pandas, NumPy, Scikit-learn, XGBoost, Imbalanced-learn (SMOTE), Joblib, SHAP |
+| **API Development** | FastAPI, Pydantic, Mangum (for Lambda) |
+| **Cloud & Deployment** | AWS (Lambda, API Gateway, S3, ECR, SAM, CloudFormation, IAM), Docker, Streamlit Community Cloud, AWS EC2 (for dev demo) |
+| **Version Control** | Git & GitHub |
 
-*   **Programming Language:** Python 3.11
-*   **Machine Learning:**
-    *   Pandas, NumPy (Data Manipulation)
-    *   Scikit-learn (Pipeline, `train_test_split`, `RandomizedSearchCV`, Metrics)
-    *   XGBoost (Classification Model)
-    *   Imbalanced-learn (SMOTE for class imbalance)
-    *   Joblib (Model saving/loading)
-    *   SHAP (Model Explainability - local demo part)
-*   **API Development:**
-    *   FastAPI (Web framework)
-    *   Pydantic (Data validation)
-    *   Mangum (Adapter for AWS Lambda)
-*   **AWS Cloud Services (Free Tier Focused):**
-    *   AWS Lambda
-    *   Amazon API Gateway (HTTP API)
-    *   Amazon S3 (for model storage & SAM artifacts)
-    *   Amazon ECR (for Lambda container image)
-    *   AWS SAM (Serverless Application Model) & SAM CLI
-    *   AWS CloudFormation
-    *   AWS IAM
-    *   AWS CloudWatch (for logging and monitoring)
-*   **Containerization:** Docker
-*   **Demo UI:** Streamlit (Planned for Level 4)
-*   **Version Control:** Git & GitHub
+## 📁 Project Structure
 
----
+```
+realtime-fraud-detection-api/
+├── .git/
+├── p1env/                     # Python virtual environment (in .gitignore)
+├── fraud_api_lambda/          # Source code for the Lambda function
+│   ├── api.py                 # FastAPI application script (loads model from S3)
+│   ├── Dockerfile             # Dockerfile for the Lambda container image
+│   └── requirements.txt       # Python dependencies for the Lambda function
+├── streamlit_app_cloud/       # Source for the permanent Streamlit Cloud demo
+│   ├── streamlit_cloud_demo.py# The API-only Streamlit app script
+│   └── requirements.txt       # Minimal dependencies for the cloud app
+├── .dockerignore
+├── .gitignore
+├── best_fraud_pipeline.joblib # The trained model artifact
+├── demo.py                    # Script for the full demo (API + SHAP) on EC2
+├── ec2_requirements.txt       # Dependencies for the full EC2 demo
+├── requirements.txt           # Core project dependencies for local development
+├── template.yaml              # AWS SAM template for serverless infrastructure
+└── README.md                  # This file
+```
 
-## Features
-
-*   **Fraud Prediction:** Predicts if a transaction is fraudulent (0 or 1) and provides a probability score.
-*   **Serverless API:** Scalable, cost-effective API endpoint hosted on AWS Lambda.
-*   **S3 Model Loading:** Efficiently handles large model files by loading from S3.
-*   **Containerized Lambda:** Deploys Lambda function as a container image, managing larger dependencies.
-*   **Interactive Demo (Planned):** User-friendly Streamlit web application for easy testing and demonstration.
-*   **Local Development & Tuning:** Complete workflow for local model development and hyperparameter optimization.
-*   **Zero-Cost Deployment (Targeted):** Designed to operate within AWS Free Tier limits (with awareness of potential minor ECR storage costs if free tier is exceeded).
-
----
-
-## Setup & Installation
-
-*(This section is for others who might want to run your code locally. Ensure your `requirements.txt` in the root of the project is accurate for these local ML steps).*
+## 🚀 Local Setup & Usage
 
 ### Prerequisites
 
-*   Python 3.11
-*   Git
-*   AWS Account (with AWS CLI configured for `amirul-dev` or equivalent user)
-*   AWS SAM CLI (latest version recommended)
-*   Docker Desktop (latest version recommended, running)
-*   Access to an S3 bucket for model storage (e.g., `aws-sam-cli-managed-default-samclisourcebucket-3ojbej2lkkdk`)
+- Git, Python 3.11, Docker Desktop
+- An AWS account with the AWS CLI v2 and AWS SAM CLI installed and configured.
 
-### Local ML Model Development (Project 1 - Levels 1 & 2)
+### Installation & Local Workflow
 
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/amirulhazym/realtime-fraud-detection-api.git
-    cd realtime-fraud-detection-api
-    ```
-2.  Create and activate a Python virtual environment (e.g., `p1env`):
-    ```bash
-    python -m venv p1env
-    .\p1env\Scripts\activate  # Windows
-    # source p1env/bin/activate # Linux/macOS
-    ```
-3.  Install dependencies (ensure `requirements.txt` in the root primarily lists ML development dependencies):
-    ```bash
-    pip install -r requirements.txt
-    pip install huggingface_hub # If loading data directly via hf://
-    ```
-4.  Run the Jupyter Notebook `01-Data-Exploration.ipynb` (or your equivalent script for ML model development) to:
-    *   Load and sample data.
-    *   Perform EDA.
-    *   Preprocess data, perform feature engineering.
-    *   Split data, apply SMOTE.
-    *   Tune hyperparameters using `RandomizedSearchCV`.
-    *   Evaluate the tuned model and save `best_fraud_pipeline.joblib` to the project root.
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/amirulhazym/realtime-fraud-detection-api.git
+   cd realtime-fraud-detection-api
+   ```
 
-### Local API Testing (Project 1 - Level 2.5)
+2. **Set Up Virtual Environment:**
+   ```bash
+   python -m venv p1env
+   .\p1env\Scripts\activate
+   ```
 
-1.  Ensure `best_fraud_pipeline.joblib` is in the project root.
-2.  Create/ensure `api.py` (configured for local Uvicorn, not S3 loading) exists in the project root.
-3.  Install FastAPI specific dependencies if not in main `requirements.txt`:
-    ```bash
-    pip install fastapi "uvicorn[standard]" pydantic
-    ```
-4.  From the project root, run (ensure `api.py` has the `if __name__ == "__main__": uvicorn.run(...)` block active):
-    ```bash
-    python api.py
-    ```
-5.  Access `http://127.0.0.1:8000/docs` in your browser.
+3. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
----
+4. **Run the ML Training Pipeline:** Execute the notebooks or scripts to train the model and generate `best_fraud_pipeline.joblib`.
 
-## AWS Deployment (SAM)
+5. **Test API Locally:** Modify a local version of `api.py` to load the model from the local file path instead of S3, then run `uvicorn api:app --reload`. Test endpoints at http://127.0.0.1:8000/docs.
 
-This project utilizes AWS SAM for deploying the API as a containerized AWS Lambda function with an API Gateway trigger. The model is loaded from S3.
+## 🔧 Deployment Deep Dive
 
-### Key AWS Services Used
-*   AWS Lambda, Amazon API Gateway (HTTP API), Amazon S3, Amazon ECR, AWS SAM CLI, AWS CloudFormation, AWS IAM.
+### AWS Serverless API
 
-### Deployment Steps (Manual ECR Push Workflow Summary)
+The API deployment was a key part of this project, involving a manual but robust workflow to handle large dependencies.
 
-*(Refer to `G-v5.7-Go` document for detailed sub-steps - contact me for the document)*
+1. **Model Storage:** The final `best_fraud_pipeline.joblib` was uploaded to an AWS S3 bucket.
+2. **Containerization:** The FastAPI application was containerized using the `fraud_api_lambda/Dockerfile`. This image was manually built and pushed to a private repository in Amazon ECR.
+3. **Infrastructure as Code (IaC):** The `template.yaml` file defines all AWS resources. It specifies a Lambda function with `PackageType: Image` and points its `ImageUri` to the pre-pushed image in ECR. It also includes an IAM policy granting the Lambda function permission to read the model file from S3.
+4. **Deployment:** The `sam deploy` command was used to execute the CloudFormation stack, provisioning the Lambda function, API Gateway, and all necessary IAM roles.
 
-1.  **Prepare ECR Repository:** Create a private ECR repository (e.g., `fraud-api-repo`) in `ap-southeast-5`.
-2.  **Build Local Docker Image:** Using `fraud_api_lambda/Dockerfile` and code.
-    ```bash
-    docker build -t fraud-api-local:latest -f fraud_api_lambda/Dockerfile fraud_api_lambda/
-    ```
-3.  **Log in to ECR, Tag, and Push Image:**
-    ```bash
-    aws ecr get-login-password --region ap-southeast-5 | docker login --username AWS --password-stdin 345594585491.dkr.ecr.ap-southeast-5.amazonaws.com
-    docker tag fraud-api-local:latest 345594585491.dkr.ecr.ap-southeast-5.amazonaws.com/fraud-api-repo:latest
-    docker push 345594585491.dkr.ecr.ap-southeast-5.amazonaws.com/fraud-api-repo:latest
-    ```
-4.  **Upload Model (`.joblib`) to S3:** Upload `best_fraud_pipeline.joblib` to an S3 bucket (e.g., `s3://aws-sam-cli-managed-default-samclisourcebucket-3ojbej2lkkdk/models/best_fraud_pipeline.joblib`).
-5.  **Configure `fraud_api_lambda/api.py`:** Update to load the model from the S3 path.
-6.  **Configure `fraud_api_lambda/requirements.txt`:** Ensure `boto3` and other inference dependencies are listed.
-7.  **Modify `template.yaml`:**
-    *   Set `PackageType: Image`.
-    *   Set `ImageUri` under `Properties` to the ECR image URI (e.g., `345594585491.dkr.ecr.ap-southeast-5.amazonaws.com/fraud-api-repo@sha256:<YOUR_IMAGE_DIGEST>`).
-    *   Remove/comment out SAM's `Metadata` block for Docker building.
-    *   Ensure `S3ReadPolicy` points to the correct S3 bucket.
-8.  **Deploy with SAM:**
-    *   Delete any failed CloudFormation stack (`fraud-detection-api-stack`).
-    *   Delete `samconfig.toml`.
-    *   Run (using the explicit parameters if `--guided` causes issues):
-    ```bash
-    sam deploy --stack-name fraud-detection-api-stack --region ap-southeast-5 --capabilities CAPABILITY_IAM --resolve-s3 --image-repository 345594585491.dkr.ecr.ap-southeast-5.amazonaws.com/fraud-api-repo
-    ```
-9.  The API will be accessible at the `FraudApiEndpoint` URL output by SAM (e.g., `https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/`).
+### Streamlit UIs
 
----
+Two UIs were created to serve different purposes:
 
-## Demo UI
+1. **EC2 Full Demo (Learning Exercise):** A full-featured version with SHAP explainability was deployed to an EC2 t3.micro instance. This taught valuable lessons in VM environment setup, dependency management on Linux, and troubleshooting. This instance was terminated to ensure zero ongoing cost.
+2. **Streamlit Cloud Demo (Live Portfolio):** A lightweight, API-only version was created and deployed to the free Streamlit Community Cloud. This serves as the permanent, public-facing demo for the project.
 
-*(This section will be updated upon completion of Project 1, Level 4)*
+## 💡 Key Challenges & Learnings
 
-### Temporary EC2 Demo (Learning Exercise)
-A planned temporary deployment of a Streamlit demo to an AWS EC2 `t2.micro` instance for learning full-stack VM deployment, including local SHAP analysis. This instance will be strictly terminated after testing.
+### **Challenge: Overcoming AWS Lambda's Deployment Package Size Limit**
+- **The Problem:** Initial attempts to deploy the FastAPI application failed because the total size of the deployment package—which included all code, dependencies, and the `best_fraud_pipeline.joblib` model file—exceeded AWS Lambda's 250 MB unzipped size limit. The deployment would result in an "Internal Server Error" and `CREATE_FAILED` status in CloudWatch logs.
 
-### Permanent Streamlit Cloud Demo
-The final user-facing demo will be deployed on Streamlit Community Cloud for portfolio showcasing.
-*   **URL:** [PENDING - To be added upon completion of P1 L4]
-*   The Streamlit app will call the live AWS Lambda API endpoint for predictions.
+- **The Solution:** The strategy was pivoted to separate the model artifact from the code. The large `.joblib` model file was uploaded to Amazon S3. The Lambda function's code was then modified to use the `boto3` library to download and load the model directly from S3 at runtime, which kept the deployment package size within the acceptable limits.
 
----
+### **Challenge: Unexpected Issues with AWS SAM's Automated Image Deployment**
+- **The Problem:** The AWS Serverless Application Model (SAM) CLI's internal logic for automatically building, pushing, and deploying a Docker image to Amazon ECR failed. The `sam deploy --guided` command would report "No images found to deploy," even though the Docker image was built locally. This bug prevented a streamlined, single-command deployment.
 
-## Challenges & Learnings
+- **The Solution:** An alternative, more robust, and manual approach was adopted. The Docker image was manually built and tagged locally using `docker build` and `docker tag`, then manually pushed to the ECR repository using `docker push`. The `template.yaml` file was updated to explicitly reference the image's URI in ECR, and the `sam deploy` command was run without the `--guided` flag, effectively bypassing the buggy part of the SAM CLI. This approach gave more control and ensured a successful deployment.
 
-*   **AWS Lambda Deployment Limits:** Encountered Lambda's 250MB unzipped package size limit. Resolved by shifting to S3 model loading and subsequently deploying the Lambda function as a container image from ECR.
-*   **AWS SAM CLI & Container Images:** Faced persistent issues with SAM CLI's automated image build-to-deploy linkage on Windows. Successfully worked around this by implementing a manual Docker build and ECR push workflow, then directing SAM to use the pre-pushed `ImageUri`.
-*   **Network Connectivity for Docker (Proxied Environment):** `docker build` initially failed with TLS handshake timeouts due to a proxied smartphone hotspot connection. Resolved by using PDAnet (via USB) to establish a more stable network path for Docker operations.
-*   **API Runtime Dependencies:** Debugged `Runtime.ImportModuleError` in Lambda (e.g., for `uvicorn`) by ensuring only essential runtime dependencies were included in the Lambda package and that local development tools were not imported in the Lambda version of `api.py`.
+### **Challenge: Managing Costs and Ensuring Zero-Cost Operation**
+- **The Problem:** A core mandate for the project was to incur absolutely zero cost by strictly adhering to the **AWS Free Tier**. Using services like Amazon EC2 for the full Streamlit demo posed a high risk of accidental charges if instances were not terminated promptly.
 
----
+- **The Solution:** A two-part strategy was implemented. First, **AWS Budgets** were set up with mandatory alerts for any spend over $0.01 to act as a safety net. Second, for the long-term demo, the Streamlit app was refactored and deployed to **Streamlit Community Cloud**, which provides a permanent, free hosting solution that doesn't rely on AWS Free Tier limits. The EC2 instance was used only as a temporary learning step and was always terminated immediately after use to avoid costs.
 
-## Future Enhancements
+### **Challenge: Correctly Installing Python Packages on the EC2 Instance**
+- **The Problem:** When deploying the Streamlit demo to an EC2 instance, the `pip install` command failed with "ERROR: Could not find a version that satisfies the requirement...". This was caused by a mismatch between the package versions in the local Python 3.11 development environment and the EC2 instance's default Python 3.9 environment.
+- **The Solution:** The solution was to explicitly install Python 3.11 on the EC2 instance and create a virtual environment with it, ensuring the Python version on the deployment target matched the development environment. This allowed the project's exact package versions to be installed successfully.
 
-*   **Advanced Monitoring:** Implement deeper CloudWatch monitoring and alarms for the Lambda and API Gateway.
-*   **Security Hardening:** Refine Lambda IAM permissions to Principle of Least Privilege. Explore API Gateway authentication.
-*   **CI/CD Integration:** Automate the ECR push and SAM deployment via GitHub Actions (as per Project 2 goals).
-*   **Ray Tune Implementation:** Finalize and integrate hyperparameter tuning using Ray Tune's Core API for more advanced optimization.
+## 🔮 Future Enhancements
 
----
+- **CI/CD Pipeline:** Fully automate the model retraining, ECR image push, and SAM deployment using GitHub Actions (as implemented in Project 2).
+- **Advanced Monitoring:** Implement comprehensive CloudWatch dashboards and alarms for API performance, errors, and costs.
+- **Security Hardening:** Refine the Lambda's IAM role to the principle of least privilege and add an API key to the API Gateway.
+- **Database Integration:** Replace the simple API with a more robust system that interacts with a database (Amazon RDS or DynamoDB) to log all prediction requests and their outcomes. This would enable data versioning and ongoing model monitoring.
+- **Extended Feature Set:** Expand the project to handle additional data types, such as location data, device information, or historical user spending patterns, to create a more comprehensive fraud detection model.
+- **Cost & Performance Optimization:** Fine-tune the Lambda function's memory and CPU allocation for better performance, and explore using a single endpoint for both model inference and explainability to reduce latency and resource usage.
+- **Refactor for Explainable AI (XAI) on Streamlit Cloud:** Implement a solution to run SHAP on the Streamlit Community Cloud without exceeding free tier limitations, perhaps by sending a request to the API with an `explain` flag or by using a less resource-intensive explainability method.
 
-## Contact
+## 👤 Author
 
-Created by amirulhazym - feel free to contact me!
-*   [github.com/amirulhazym](https://github.com/amirulhazym)
-*   [linkedin.com/in/amirulhazym](https://linkedin.com/in/amirulhazym)
-*   [instagram.com/amirulhazym](https://instagram.com/amirulhazym)
-*   [amirulhazym@gmail.com](mailto:amirulhazym@gmail.com)
+**Amirulhazym**
 
----
+- LinkedIn: [linkedin.com/in/amirulhazym](https://linkedin.com/in/amirulhazym)
+- GitHub: [github.com/amirulhazym](https://github.com/amirulhazym)
+- Portfolio: [amirulhazym.framer.ai](https://amirulhazym.framer.ai)
