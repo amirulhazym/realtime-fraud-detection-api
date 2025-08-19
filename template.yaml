@@ -17,7 +17,7 @@ Resources:
       PackageType: Image # Deploy Lambda function as a container image
       # IMPORTANT: Path relative to this template.yaml file to your code folder
       # CodeUri: fraud_api_lambda/
-      ImageUri: 345594585491.dkr.ecr.ap-southeast-5.amazonaws.com/fraud-api-repo@sha256:ca40a625246ca3fab36c03ceff91f4b5cb9fa806a0bd30b5d842626a62d9e5e9 # ECR image URI
+      ImageUri: public.ecr.aws/b3l9a0q0/amirulhazym/fraud-detection-api:latest # ECR image URI
       # IMPORTANT: Entry point: filename.handler_object (api.py -> handler = Mangum(app))
       # Handler: api.handler
       # Runtime: python3.11 # Specify the Python runtime
