@@ -83,7 +83,7 @@ st.markdown("---")
 
 
 # --- API and Model Configuration ---
-API_ENDPOINT_URL = "https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/predict" # Make sure this is correct
+API_ENDPOINT_URL = "https://zeir21qzal.execute-api.ap-southeast-5.amazonaws.com/predict" # Make sure this is correct
 MODEL_FILE_PATH = "best_fraud_pipeline.joblib"
 
 @st.cache_data # Cache the model loading

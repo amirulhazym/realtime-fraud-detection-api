@@ -12,7 +12,7 @@ import requests
 import plotly.express as px # ### MODIFIED FOR STREAMLIT CLOUD ### - Keep if to try display any data with plotly, but not for SHAP since SHAP is removed
 
 # --- Configuration ---
-API_ENDPOINT_URL = "https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/predict" # Make sure this is correct
+API_ENDPOINT_URL = "https://zeir21qzal.execute-api.ap-southeast-5.amazonaws.com/predict" # Make sure this is correct
 # MODEL_FILE_PATH = "best_fraud_pipeline.joblib" # 
 APP_VERSION = "1.1.0-cloud" # Example version for cloud demo
 
