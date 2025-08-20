@@ -150,7 +150,7 @@ Two UIs were created to serve different purposes:
 ## 💡 Key Challenges & Learnings
 
 ### **1. Challenge: Advanced Hyperparameter Tuning (Ray Tune)**
-- **The Problem:** In Level 2, the initial plan was to use Ray Tune. However, running it locally produced a ModuleNotFoundError because the tune-sklearn library it depends on is deprecated and incompatible with modern Ray versions. An attempt on Colab resulted in a ValueError related to data serialization.
+- **The Problem:** In Phase 2, the initial plan was to use Ray Tune. However, running it locally produced a ModuleNotFoundError because the tune-sklearn library it depends on is deprecated and incompatible with modern Ray versions. An attempt on Colab resulted in a ValueError related to data serialization.
 
 - **The Solution:** Pivoted to a more stable, industry-standard alternative: Scikit-learn's `RandomizedSearchCV`. This allowed for effective hyperparameter tuning without being blocked by tooling issues, ensuring the project could proceed with a well-optimized model.
 
@@ -175,7 +175,7 @@ Two UIs were created to serve different purposes:
 - **The Solution:** The solution was to explicitly install Python 3.11 on the EC2 instance and create a virtual environment with it, ensuring the Python version on the deployment target matched the development environment. This allowed the project's exact package versions to be installed successfully.
 
 ### **6. Challenge: SSH Connection & Permissions on EC2**
-- **The Problem:** In Level 4 (MVP 1), the initial SSH connection to the EC2 instance failed with Permission denied (publickey) due to the .pem key file having "permissions are too open" on the local Windows machine. The connection also dropped frequently.
+- **The Problem:** In Phase 4 (MVP 1), the initial SSH connection to the EC2 instance failed with Permission denied (publickey) due to the .pem key file having "permissions are too open" on the local Windows machine. The connection also dropped frequently.
   
 - **The Solution:** Corrected Windows file permissions (ACLs) on the .pem key file by removing access for broad groups like "Authenticated Users." The connection dropping was stabilized by using the ServerAliveInterval option in the SSH command.
 
