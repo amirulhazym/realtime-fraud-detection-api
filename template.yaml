@@ -15,7 +15,7 @@ Resources:
     Type: AWS::Serverless::Function # Defines the Lambda function
     Properties:
       PackageType: Image # Deploy Lambda function as a container image
-      # IMPORTANT: Path relative to this template.yaml file to your code folder
+      # IMPORTANT: Path relative to this template.yaml file to our code folder
       # CodeUri: fraud_api_lambda/
       ImageUri: 345594585491.dkr.ecr.ap-southeast-5.amazonaws.com/fraud-detection-api-private:latest # ECR image URI
       # IMPORTANT: Entry point: filename.handler_object (api.py -> handler = Mangum(app))
@@ -26,7 +26,7 @@ Resources:
         - x86_64 # Specify the CPU architecture
       MemorySize: 512 # Memory size in MB
       Timeout: 30 # Function timeout in seconds
-      # Environment: # Example - uncomment and use if your api.py needs env vars
+      # Environment: # Example - uncomment and use if api.py needs env vars
       #   Variables:
       #     LOG_LEVEL: INFO # Example environment variable
       Policies:

@@ -1,9 +1,0 @@
-version = 0.1
-[default.deploy.parameters]
-stack_name = "fraud-detection-api-stack"
-resolve_s3 = true
-s3_prefix = "fraud-detection-api-stack"
-region = "ap-southeast-5"
-confirm_changeset = true
-capabilities = "CAPABILITY_IAM"
-image_repositories = ["FraudApiFunction=public.ecr.aws/b3l9a0q0/fraud-detection-api-public"]
