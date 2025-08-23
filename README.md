@@ -1,20 +1,20 @@
 # Serverless Real-Time Fraud Detection API 🛡️
 
-[![AWS Serverless API](https://img.shields.io/badge/AWS-Serverless_API-FF9900?logo=amazonaws)](https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/predict)
+[![AWS Serverless API](https://img.shields.io/badge/AWS-Serverless_API-FF9900?logo=amazonaws)](https://zeir21qzal.execute-api.ap-southeast-5.amazonaws.com/predict)
 [![Streamlit App](https://img.shields.io/badge/Streamlit-Live_Demo-FF4B4B?logo=streamlit)](https://realtime-fraud-detection-api.streamlit.app/)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python)](https://www.python.org/downloads/release/python-3110/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 📋 Project Overview
 
-This project implements an end-to-end real-time fraud detection system, featuring a machine learning model (XGBoost) exposed via a scalable serverless API on AWS. The system is demonstrated with an interactive web UI hosted on Streamlit Community Cloud. The primary goal was to build a production-mimicking solution while adhering to a strict **zero-cost objective** by leveraging AWS Free Tier services.
+This project implements an end-to-end real-time fraud detection system, featuring a machine learning model (XGBoost) exposed via a scalable serverless API on AWS. The system is demonstrated with an interactive web UI hosted on Streamlit Community Cloud. The primary goal was to build a production-mimicking solution while adhering to a strict **zero-cost objective** by leveraging, utilizing and maximizing AWS Free Tier services.
 
 The system predicts whether a given financial transaction is fraudulent based on its features, providing both a classification and a probability score. This project covers the full MLOps lifecycle: data preprocessing, feature engineering, model training, robust API development (FastAPI), serverless deployment (AWS Lambda, SAM), and building a user-friendly demonstration interface (Streamlit).
 
 ## ✨ Live Demo & API Endpoint
 
 - **🚀 Interactive Web App (Streamlit Cloud):** [**https://realtime-fraud-detection-api.streamlit.app/**](https://realtime-fraud-detection-api.streamlit.app/)
-- **⚙️ Live API Endpoint (AWS Lambda):** [**https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/predict**](https://ino023h7ib.execute-api.ap-southeast-5.amazonaws.com/predict)
+- **⚙️ Live API Endpoint (AWS Lambda):** [**https://zeir21qzal.execute-api.ap-southeast-5.amazonaws.com/predict**](https://zeir21qzal.execute-api.ap-southeast-5.amazonaws.com/predict)
 
 **(Insert a screenshot or GIF of your final Streamlit application in action here!)**
 <!-- Example: ![Fraud Detection App Demo](docs/images/p1_demo.gif) -->
@@ -144,29 +144,57 @@ The API deployment was a key part of this project, involving a manual but robust
 
 Two UIs were created to serve different purposes:
 
-1. **EC2 Full Demo (Learning Exercise):** A full-featured version with SHAP explainability was deployed to an EC2 t3.micro instance. This taught valuable lessons in VM environment setup, dependency management on Linux, and troubleshooting. This instance was terminated to ensure zero ongoing cost.
+1. **EC2 Full Demo (Learning Exercise):** A full-featured version with SHAP explainability was deployed to an EC2 t3.micro instance. This taught valuable lessons in VM environment setup, dependency management on Linux, and troubleshooting. Currently, this instance being monitor actively to ensure zero ongoing cost, might terminate at anytime.
 2. **Streamlit Cloud Demo (Live Portfolio):** A lightweight, API-only version was created and deployed to the free Streamlit Community Cloud. This serves as the permanent, public-facing demo for the project.
 
 ## 💡 Key Challenges & Learnings
 
-### **Challenge: Overcoming AWS Lambda's Deployment Package Size Limit**
+### **1. Challenge: Advanced Hyperparameter Tuning (Ray Tune)**
+- **The Problem:** In Phase 2, the initial plan was to use Ray Tune. However, running it locally produced a ModuleNotFoundError because the tune-sklearn library it depends on is deprecated and incompatible with modern Ray versions. An attempt on Colab resulted in a ValueError related to data serialization.
+
+- **The Solution:** Pivoted to a more stable, industry-standard alternative: Scikit-learn's `RandomizedSearchCV`. This allowed for effective hyperparameter tuning without being blocked by tooling issues, ensuring the project could proceed with a well-optimized model.
+
+### **2. Challenge: Overcoming AWS Lambda's Deployment Package Size Limit**
 - **The Problem:** Initial attempts to deploy the FastAPI application failed because the total size of the deployment package—which included all code, dependencies, and the `best_fraud_pipeline.joblib` model file—exceeded AWS Lambda's 250 MB unzipped size limit. The deployment would result in an "Internal Server Error" and `CREATE_FAILED` status in CloudWatch logs.
 
 - **The Solution:** The strategy was pivoted to separate the model artifact from the code. The large `.joblib` model file was uploaded to Amazon S3. The Lambda function's code was then modified to use the `boto3` library to download and load the model directly from S3 at runtime, which kept the deployment package size within the acceptable limits.
 
-### **Challenge: Unexpected Issues with AWS SAM's Automated Image Deployment**
+### **3. Challenge: Unexpected Issues with AWS SAM's Automated Image Deployment**
 - **The Problem:** The AWS Serverless Application Model (SAM) CLI's internal logic for automatically building, pushing, and deploying a Docker image to Amazon ECR failed. The `sam deploy --guided` command would report "No images found to deploy," even though the Docker image was built locally. This bug prevented a streamlined, single-command deployment.
 
 - **The Solution:** An alternative, more robust, and manual approach was adopted. The Docker image was manually built and tagged locally using `docker build` and `docker tag`, then manually pushed to the ECR repository using `docker push`. The `template.yaml` file was updated to explicitly reference the image's URI in ECR, and the `sam deploy` command was run without the `--guided` flag, effectively bypassing the buggy part of the SAM CLI. This approach gave more control and ensured a successful deployment.
 
-### **Challenge: Managing Costs and Ensuring Zero-Cost Operation**
+### **4. Challenge: Managing Costs and Ensuring Zero-Cost Operation**
 - **The Problem:** A core mandate for the project was to incur absolutely zero cost by strictly adhering to the **AWS Free Tier**. Using services like Amazon EC2 for the full Streamlit demo posed a high risk of accidental charges if instances were not terminated promptly.
 
-- **The Solution:** A two-part strategy was implemented. First, **AWS Budgets** were set up with mandatory alerts for any spend over $0.01 to act as a safety net. Second, for the long-term demo, the Streamlit app was refactored and deployed to **Streamlit Community Cloud**, which provides a permanent, free hosting solution that doesn't rely on AWS Free Tier limits. The EC2 instance was used only as a temporary learning step and was always terminated immediately after use to avoid costs.
+- **The Solution:** A two-part strategy was implemented. First, **AWS Budgets** were set up with mandatory alerts for any spend over $0.01 to act as a safety net. Second, for the long-term demo, the Streamlit app was refactored and deployed to **Streamlit Community Cloud**, which provides a permanent, free hosting solution that doesn't rely on AWS Free Tier limits. The EC2 instance was used only as a temporary learning step and currently being monitor for its usage.
 
-### **Challenge: Correctly Installing Python Packages on the EC2 Instance**
+### **5. Challenge: Correctly Installing Python Packages on the EC2 Instance**
 - **The Problem:** When deploying the Streamlit demo to an EC2 instance, the `pip install` command failed with "ERROR: Could not find a version that satisfies the requirement...". This was caused by a mismatch between the package versions in the local Python 3.11 development environment and the EC2 instance's default Python 3.9 environment.
+  
 - **The Solution:** The solution was to explicitly install Python 3.11 on the EC2 instance and create a virtual environment with it, ensuring the Python version on the deployment target matched the development environment. This allowed the project's exact package versions to be installed successfully.
+
+### **6. Challenge: SSH Connection & Permissions on EC2**
+- **The Problem:** In Phase 4 (MVP 1), the initial SSH connection to the EC2 instance failed with Permission denied (publickey) due to the .pem key file having "permissions are too open" on the local Windows machine. The connection also dropped frequently.
+  
+- **The Solution:** Corrected Windows file permissions (ACLs) on the .pem key file by removing access for broad groups like "Authenticated Users." The connection dropping was stabilized by using the ServerAliveInterval option in the SSH command.
+
+### **7. Challenge: The Final API 500 Internal Server Error After a Long Break**
+- **The Problem:** After 3 months of project completion, the live API endpoint, which was previously functional, began returning a generic `500 Internal Server Error`. Critically, when investigating the issue, there were **no new logs being generated in AWS CloudWatch** for any of the failed requests. This **"silent failure"** indicated that the problem was not a bug in my Python code, but a more fundamental infrastructure failure occurring before the Lambda function could even start its execution environment.
+
+- **The Solution:** The diagnostic process involved a systematic check of the Lambda function's core dependencies:
+    - **CloudWatch Analysis:** The absence of new logs ruled out application-level errors and            pointed towards a failure in the Lambda service's invocation or initialization phase.
+    - **ECR Repository Check:** I hypothesized that the container image, the function's primary
+      dependency, might be missing. A check in the Amazon Elastic Container Registry (ECR)
+      confirmed this: the private ECR repository (fraud-api-repo) that the Lambda function was
+      configured to pull from had been deleted, likely during a prior manual resource cleanup.
+    - **Path to Resolution:** The initial fix was to recreate the ECR repository and push the image
+      again. This led to the next, even deeper, challenge.
+
+### **8. Challenge: Debugging a Cascade of Failures with ECR Public Repositories in AWS SAM**
+- **The Problem:** To fix `500 Internal Server Error`, a strategic decision was made to switch to an ECR Public repository to leverage its more generous **"Always Free"** tier. However, this seemingly simple change led to persistent deployment failures. CloudFormation repeatedly failed with a cryptic **"Source image ... is not valid"** error, even after using `docker buildx` to guarantee a correct `x86_64` image architecture. Furthermore, the SAM CLI's transform engine failed with `Invalid Serverless Application Specification` errors when trying to define IAM policies for the function.
+  
+- **The Solution:** The root cause was diagnosed as an underlying incompatibility or series of bugs in how the AWS SAM/CloudFormation toolchain handles Lambda functions sourced from ECR Public repositories. After exhausting all targeted fixes, the most effective engineering decision was to pivot the strategy back to using **Private ECR repository**. The final template.yaml was reconfigured for the private repo, which immediately resolved all deployment errors and allowed the API to go live successfully. This was a critical lesson in recognizing tooling limitations and prioritizing stable, standard architectures.
 
 ## 🔮 Future Enhancements
 
