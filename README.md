@@ -15,47 +15,17 @@ The system predicts whether a given financial transaction is fraudulent based on
 
 - **🚀 Interactive Web App (Streamlit Cloud):** [**https://realtime-fraud-detection-api.streamlit.app/**](https://realtime-fraud-detection-api.streamlit.app/)
 - **⚙️ Live API Endpoint (AWS Lambda):** [**https://zeir21qzal.execute-api.ap-southeast-5.amazonaws.com/predict**](https://zeir21qzal.execute-api.ap-southeast-5.amazonaws.com/predict)
+![Web Interface](https://framerusercontent.com/images/jTC3mMkJpOEPOBb11e2MHW5l5qw.png?width=873&height=848)
 
-**(Insert a screenshot or GIF of your final Streamlit application in action here!)**
-<!-- Example: ![Fraud Detection App Demo](docs/images/p1_demo.gif) -->
+
+** **More screenshots are available in my portfolio website: [Visit Website](https://amirulhazym.framer.ai/work/fraud-detection-api)**
+
 
 ## 🏗️ System Architecture
 
 The system integrates local ML development with a cloud-native serverless backend and a web-based frontend.
+![Web Interface](https://framerusercontent.com/images/BmjEZFvz9hRuKMZKo22kylubBM.png?width=1625&height=824)
 
-```mermaid
-flowchart TD
-    subgraph "Local Development Environment"
-        A[Raw Data] --> B(Data Preprocessing & Feature Engineering);
-        B --> C{SMOTE for Imbalance};
-        C --> D[XGBoost Model Training & Tuning];
-        D --> E((best_fraud_pipeline.joblib));
-    end
-
-    subgraph "AWS Serverless Backend"
-        E -- Uploaded to --> F[S3 Bucket for Model Storage];
-        G[FastAPI Code <br> api.py] & H[Dockerfile] -- Build --> I[Container Image];
-        I -- Pushed to --> J[Amazon ECR];
-        K[SAM Template <br> template.yaml] -- 'sam deploy' --> L[CloudFormation Stack];
-        L -- Creates/Updates --> M[AWS Lambda Function];
-        M -- Pulls Image from --> J;
-        M -- Loads Model at startup from --> F;
-        L -- Creates/Updates --> N[API Gateway];
-        N -- Triggers --> M;
-    end
-
-    subgraph "Frontend User Interface"
-        O[User] -- Interacts with --> P{Streamlit Cloud App};
-        P -- Sends API Request --> N;
-        N -- Returns Prediction --> P;
-        P -- Displays Result --> O;
-    end
-
-    style F fill:#FF9900,stroke:#333,stroke-width:2px
-    style J fill:#FF6D00
-    style M fill:#FF9900,stroke:#333,stroke-width:2px
-    style P fill:#FF4B4B,stroke:#333,stroke-width:2px
-```
 
 ## ⭐ Core Features
 
@@ -198,7 +168,7 @@ Two UIs were created to serve different purposes:
 
 ## 🔮 Future Enhancements
 
-- **CI/CD Pipeline:** Fully automate the model retraining, ECR image push, and SAM deployment using GitHub Actions (as implemented in Project 2).
+- **CI/CD Pipeline:** Fully automate the model retraining, ECR image push, and SAM deployment using GitHub Actions (implemented in [Project 2](https://github.com/amirulhazym/mlops-automated-pipeline)).
 - **Advanced Monitoring:** Implement comprehensive CloudWatch dashboards and alarms for API performance, errors, and costs.
 - **Security Hardening:** Refine the Lambda's IAM role to the principle of least privilege and add an API key to the API Gateway.
 - **Database Integration:** Replace the simple API with a more robust system that interacts with a database (Amazon RDS or DynamoDB) to log all prediction requests and their outcomes. This would enable data versioning and ongoing model monitoring.
