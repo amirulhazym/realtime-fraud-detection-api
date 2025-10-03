@@ -37,6 +37,44 @@ The system integrates local ML development with a cloud-native serverless backen
 - **Model Explainability (EC2 Version):** A temporary, full-featured version was deployed to an EC2 VM to demonstrate SHAP-based feature importance.
 - **Zero-Cost for Production:** Designed to operate entirely within the AWS Free Tier and Streamlit Community Cloud's free hosting.
 
+## 📶 Model Performance & Results
+
+The final XGBoost model was evaluated on a held-out, imbalanced test set. Given the high cost of missing a fraudulent transaction, the primary metric for success was **Recall** for the 'Fraud' class, with an initial project target of >= 75%.
+
+Through a rigorous process of data preprocessing (SMOTE for class imbalance) and hyperparameter tuning (`RandomizedSearchCV`), the final model significantly exceeded this target.
+
+### Key Evaluation Metrics (Fraud Class)
+
+| Metric | Result | Interpretation |
+| :--- | :--- | :--- |
+| **Recall** | **98.12%** | **Primary Goal Exceeded.** The model successfully identified **261 out of 266** actual fraud cases in the test set. Only 5 fraud cases were missed. |
+| **Precision** | **76.32%** | When the model flagged a transaction as 'Fraud', it was correct **76% of the time**. This maintains a good balance, minimizing false alarms for legitimate customers. |
+| **F1-Score** | **0.8586** | Represents a strong balance between Recall and Precision, indicating a robust and effective model. |
+
+---
+
+### Detailed Classification Report (Tuned Model)
+
+```text
+               precision    recall  f1-score   support
+
+Not Fraud (0)     1.0000    1.0000    1.0000    199734
+    Fraud (1)     0.7632    0.9812    0.8586       266
+
+     accuracy                         1.0000    200000
+    macro avg     0.8816    0.9906    0.9293    200000
+ weighted avg     1.0000    1.0000    1.0000    200000
+```
+
+
+### Confusion Matrix
+The confusion matrix provides a clear view of the model's predictions versus the actual outcomes.
+
+*   **True Positives (TP): 261** (Correctly identified fraud)
+*   **False Negatives (FN): 5** (Missed fraud cases - **THE MOST CRITICAL ERROR**)
+*   **False Positives (FP): 81** (Legitimate transactions incorrectly flagged as fraud)
+*   **True Negatives (TN): 199,653** (Correctly identified legitimate transactions)
+
 ## 🛠️ Technology Stack
 
 | Category | Technologies Used |
